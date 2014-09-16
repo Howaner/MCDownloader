@@ -10,34 +10,6 @@ class Utils {
 		return newPath;
 	}
 	
-	public static Gee.List<DownloadItem>? get_assets_files(Xml.Node* root_node) {
-		string folder = Downloader.instance.folder;
-		Gee.List<DownloadItem>? items = new Gee.ArrayList<DownloadItem>();
-		try {
-			for (Xml.Node* node = root_node->children; node != null; node = node->next) {
-				if (node->type != Xml.ElementType.ELEMENT_NODE) continue;
-				if (node->name != "Contents") continue;
-				string filename = "";
-				int size = 0;
-				for (Xml.Node* mini_node = node->children; mini_node != null; mini_node = mini_node->next) {
-					if (mini_node->type != Xml.ElementType.ELEMENT_NODE) continue;
-					string content_name = mini_node->name;
-					if (content_name == "Key") filename = mini_node->get_content();
-					if (content_name == "Size") size = int.parse(mini_node->get_content());
-				}
-				if (filename.substring(filename.index_of_nth_char(filename.length-1), 1) == "/") continue;
-				string file_string = check_windows_path("%s/assets/%s".printf(folder, filename));
-				DownloadItem dl_item = new DownloadItem("https://s3.amazonaws.com/Minecraft.Resources/%s".printf(filename), file_string);
-				items.add(dl_item);
-			}
-			
-			return items;
-		} catch (Error e) {
-			print(e.message + "\n");
-			return null;
-		}
-	}
-	
 	public static Gee.List<string>? get_versions() {
 		Json.Object? root_object = load_json("https://s3.amazonaws.com/Minecraft.Download/versions/versions.json");
 		if (root_object == null) return null;
@@ -67,8 +39,9 @@ class Utils {
 		libraries_object.get_elements().foreach((librarie_node) => {
 			var librarie_object = librarie_node.get_object();
 			string librarie_name = librarie_object.get_string_member("name");
-			string librarie_url = get_librarie_url(librarie_name);
-			string librarie_path = get_librarie_path(librarie_name);
+			string server_url = (librarie_object.has_member("url")) ? librarie_object.get_string_member("url") : "https://libraries.minecraft.net";
+			string librarie_url = "%s/%s".printf(server_url, get_library_path(librarie_name));
+			string librarie_path = check_windows_path("%s/%s".printf(Downloader.instance.folder, get_library_path(librarie_name)));
 			bool cancel = false;
 			if (librarie_object.has_member("natives")) {
 				var native_object = librarie_object.get_object_member("natives");
@@ -103,22 +76,16 @@ class Utils {
 		}
 	}
 	
-	public static string get_librarie_url(string librarie) {
-		string[] s = librarie.split(":");
-		string package = s[0].replace(".", "/");
-		string name = s[1];
-		string version = s[2];
-		string url = "https://s3.amazonaws.com/Minecraft.Download/libraries/%s/%s/%s/%s.jar".printf(package, name, version, name + "-" + version);
-		return url;
+	public static string get_library_base_dir(string library_name) {
+		string[] split = library_name.split(":");
+		return "%s/%s/%s".printf(split[0].replace(".", "/"), split[1], split[2]);
 	}
 	
-	public static string get_librarie_path(string librarie) {
-		string[] s = librarie.split(":");
-		string package = s[0].replace(".", "/");
-		string name = s[1];
-		string version = s[2];
-		string path = check_windows_path("%s/libraries/%s/%s/%s/%s.jar".printf(Downloader.instance.folder, package, name, version, name + "-" + version));
-		return path;
+	public static string get_library_path(string library_name) {
+		string[] split = library_name.split(":");
+		string file_name = "%s-%s.jar".printf(split[1], split[2]);
+
+		return "%s/%s".printf(get_library_base_dir(library_name), file_name);
 	}
 	
 	public static int get_prozent(int wert, int gesamt) {

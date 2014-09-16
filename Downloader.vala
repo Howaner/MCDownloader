@@ -13,24 +13,12 @@ class Downloader {
 		this.folder = folder;
 		instance = this;
 		
-		///Downloade Informationen
+		/// Downloade Informationen
 		print("== Informationen werden heruntergeladen ==\n");
-		Gee.List<DownloadItem>? assets;
 		Gee.List<string>? versions;
+
 		try {
-			//Assets
-			string xml_file_local_string = Utils.check_windows_path("%s/assets/assets.xml".printf(this.folder));
-			Utils.check_path(xml_file_local_string);
-			File file = File.new_for_path(xml_file_local_string);
-			File internet = File.new_for_uri("https://s3.amazonaws.com/Minecraft.Resources/");
-			if (file.query_exists()) file.delete();
-			internet.copy(file, 0);
-			Xml.Doc* doc = Xml.Parser.parse_file(xml_file_local_string);
-			Xml.Node* xml_node = doc->get_root_element();
-			assets = Utils.get_assets_files(xml_node);
-			if (assets == null)
-				throw new Error(Quark.from_string("Failed to Download Assets List"), 0, "Failed to Download Assets List");
-			//Minecraft Versionen
+			// Minecraft Versionen
 			versions = Utils.get_versions();
 			if (versions == null)
 				throw new Error(Quark.from_string("Failed to Download MC Versions!"), 0, "Failed to Download MC Versions!");
@@ -41,17 +29,7 @@ class Downloader {
 		}
 		
 		download_finished.connect((download_name) => {
-			if (download_name == "Assets") {
-				this.akt_download = 0;
-				this.next_download_id = 0;
-				this.download_items = new Gee.ArrayList<DownloadItem>();
-				for (int i=0; i<versions.size; i++) {
-					string version = versions.get(i);
-					this.download_items.add(new DownloadItem("https://s3.amazonaws.com/Minecraft.Download/versions/%s/%s.json".printf(version, version), "%s/versions/%s/%s.json".printf(Downloader.instance.folder, version, version)));
-				}
-				print("== Downloade Json Dateien ==\n");
-				this.download("Json");
-			} else if (download_name == "Json") {
+			if (download_name == "Json") {
 				//Minecraft Dateien
 				Gee.List<DownloadItem> version_files = new Gee.ArrayList<DownloadItem>();
 				for (int i=0; i<versions.size; i++) {
@@ -59,7 +37,7 @@ class Downloader {
 					try {
 						Gee.List<DownloadItem>? files = Utils.get_version_files(version);
 						if (files == null)
-							throw new Error(Quark.from_string("Failed to get Infos from Version %s".printf(version)), 0, "Failed to get Infos from Version %s".printf(version));
+							throw new Error(Quark.from_string("Failed to get infos from Version %s".printf(version)), 0, "Failed to get infos from Version %s".printf(version));
 						for (int y=0; y<files.size; y++) {
 							version_files.add(files.get(y));
 						}
@@ -88,12 +66,17 @@ class Downloader {
 				loop.quit();
 		});
 		
-		//Downloade Assets
+		// Downloade Assets
 		this.akt_download = 0;
 		this.next_download_id = 0;
-		this.download_items = assets;
+		this.download_items = new Gee.ArrayList<DownloadItem>();
+		for (int i=0; i < versions.size; i++) {
+			string version = versions.get(i);
+			this.download_items.add(new DownloadItem("https://s3.amazonaws.com/Minecraft.Download/versions/%s/%s.json".printf(version, version), "%s/versions/%s/%s.json".printf(Downloader.instance.folder, version, version)));
+		}
+		print("== Downloade Json Dateien ==\n");
 		loop = new MainLoop();
-		this.download("Assets");
+		this.download("Json");
 		loop.run();
 	}
 	
